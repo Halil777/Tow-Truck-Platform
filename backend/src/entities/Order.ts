@@ -16,6 +16,7 @@ export type OrderStatus =
   | "PENDING"
   | "ASSIGNED"
   | "IN_PROGRESS"
+  | "AWAITING_PAYMENT"
   | "COMPLETED"
   | "CANCELLED";
 

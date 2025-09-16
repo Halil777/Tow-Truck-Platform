@@ -4,6 +4,8 @@ import { UserService } from "./userService";
 import { AppDataSource } from "../config/database";
 import { Order } from "../entities/Order";
 import { User } from "../entities/User";
+import { Driver } from "../entities/Driver";
+import { getIO } from "../utils/socket";
 
 export class BotService {
   private bot: Telegraf;
@@ -28,7 +30,7 @@ export class BotService {
 
     this.bot.help((ctx: Context) => {
       ctx.reply(
-        "Commands:\n/start - Start bot\n/help - Help\n/register - Share phone to register\n/order - Create tow order\n(You can also send a location to notify admin)"
+        "Команды:\n/start — запуск бота\n/help — помощь\n/register — регистрация (поделиться телефоном)\n/order — оформить заказ эвакуатора\nТакже вы можете отправить геолокацию."
       );
     });
 
@@ -44,8 +46,49 @@ export class BotService {
       await ctx.scene.enter("order-wizard");
     });
 
-    // Location forwarding to admin (outside of wizards)
-    this.bot.on("location", async (ctx: any) => {
+    // Russian menu buttons for non-command usage
+    this.bot.hears("Заказать эвакуатор", async (ctx: any) => {
+      await ctx.scene.enter("order-wizard");
+    });
+    this.bot.hears("Поделиться телефоном", async (ctx: any) => {
+      await ctx.scene.enter("register-wizard");
+    });
+
+    // Payment callbacks (pay:<orderId>:<method>)
+    this.bot.on("callback_query", async (ctx: any) => {
+      const data: string = ctx.callbackQuery?.data || "";
+      if (!data.startsWith("pay:")) return ctx.answerCbQuery().catch(() => {});
+      try {
+        const parts = data.split(":");
+        const id = Number(parts[1]);
+        const method = parts[2];
+        if (!id || !method) return ctx.answerCbQuery("Некорректные данные").catch(() => {});
+        const orderRepo = AppDataSource.getRepository(Order);
+        const payRepo = AppDataSource.getRepository(require("../entities/Payment").Payment);
+        const order = await orderRepo.findOne({ where: { id } });
+        if (!order) return ctx.answerCbQuery("Заказ не найден").catch(() => {});
+        let payment = await payRepo.findOne({ where: { order: { id } as any } });
+        if (!payment) payment = payRepo.create({ order, amount: order.price, status: "PENDING" });
+        payment.provider = method;
+        payment.status = "SUCCESS";
+        await payRepo.save(payment);
+        order.status = "COMPLETED" as any;
+        order.completedAt = new Date();
+        await orderRepo.save(order);
+        await ctx.answerCbQuery("Оплата подтверждена");
+        await ctx.editMessageText(
+          `Оплата принята: ${order.price.toFixed(2)}₽, способ: ${method === "CASH" ? "Наличные" : "Карта"}`
+        ).catch(() => {});
+      } catch (e) {
+        console.error("pay callback error", e);
+        try { await ctx.answerCbQuery("Ошибка оплаты"); } catch {}
+      }
+    });
+
+    // Location forwarding to admin (outside of order wizard)
+    this.bot.on("location", async (ctx: any, next: any) => {
+      // If inside order wizard, let the scene handle it
+      if ((ctx as any)?.scene?.current?.id === "order-wizard") return next();
       const adminChatId = process.env.ADMIN_CHAT_ID;
       if (!adminChatId) return;
       const from = ctx.message?.from;
@@ -61,6 +104,37 @@ export class BotService {
         console.error("Forward location error", e);
       }
     });
+
+    // Payment callbacks (pay:<orderId>:<method>) — allow other callbacks to pass through
+    this.bot.on("callback_query", async (ctx: any, next: any) => {
+      const data: string = ctx.callbackQuery?.data || "";
+      if (!data.startsWith("pay:")) return next();
+      try {
+        const parts = data.split(":");
+        const id = Number(parts[1]);
+        const method = parts[2];
+        if (!id || !method) return ctx.answerCbQuery("Некорректные данные").catch(() => {});
+        const orderRepo = AppDataSource.getRepository(Order);
+        const payRepo = AppDataSource.getRepository(require("../entities/Payment").Payment);
+        const order = await orderRepo.findOne({ where: { id } });
+        if (!order) return ctx.answerCbQuery("Заказ не найден").catch(() => {});
+        let payment = await payRepo.findOne({ where: { order: { id } as any } });
+        if (!payment) payment = payRepo.create({ order, amount: order.price, status: "PENDING" });
+        payment.provider = method;
+        payment.status = "SUCCESS";
+        await payRepo.save(payment);
+        order.status = "COMPLETED" as any;
+        order.completedAt = new Date();
+        await orderRepo.save(order);
+        await ctx.answerCbQuery("Оплата подтверждена");
+        await ctx.editMessageText(
+          `Оплата принята: ${order.price.toFixed(2)}₽, способ: ${method === "CASH" ? "Наличные" : "Карта"}`
+        ).catch(() => {});
+      } catch (e) {
+        console.error("pay callback error", e);
+        try { await ctx.answerCbQuery("Ошибка оплаты"); } catch {}
+      }
+    });
   }
 
   private async handleStart(ctx: Context): Promise<void> {
@@ -69,11 +143,14 @@ export class BotService {
       if (!from) return;
       const user = await this.userService.findOrCreateUser(from);
       await ctx.reply(
-        `Welcome ${user.firstName}! Type /register to share your phone or /order to request a tow.`
+        `Здравствуйте, ${user.firstName || "пользователь"}!\n` +
+        `— Нажмите «Заказать эвакуатор», чтобы оформить заказ.\n` +
+        `— Нажмите «Поделиться телефоном», чтобы зарегистрироваться.`,
+        Markup.keyboard([["Заказать эвакуатор"],["Поделиться телефоном"]]).resize()
       );
     } catch (error) {
       console.error("Start handler error:", error);
-      await ctx.reply("An error occurred. Please try again.");
+      await ctx.reply("Произошла ошибка. Попробуйте позже.");
     }
   }
 
@@ -81,7 +158,7 @@ export class BotService {
     try {
       const users = await this.userService.getAllUsers();
       const userCount = users.length;
-      await ctx.reply(`Total users: ${userCount}`);
+      await ctx.reply(`Всего пользователей: ${userCount}`);
     } catch (error) {
       console.error("Users command error:", error);
       await ctx.reply("Failed to fetch users.");
@@ -103,6 +180,12 @@ export class BotService {
     const retryMs = Number(process.env.BOT_RETRY_MS || 30000);
 
     try {
+      // Ensure long polling by removing any webhook and pending updates
+      try {
+        await this.bot.telegram.deleteWebhook({ drop_pending_updates: true });
+      } catch (e) {
+        // ignore if no webhook set
+      }
       await this.bot.launch();
       console.log("Telegram bot started!");
     } catch (err: any) {
@@ -123,8 +206,8 @@ export class BotService {
   private createRegisterWizard(): Scenes.WizardScene<Scenes.WizardContext> {
     const askPhone = async (ctx: any) => {
       await ctx.reply(
-        "Please share your phone number",
-        Markup.keyboard([Markup.button.contactRequest("Share phone")]).oneTime().resize()
+        "Пожалуйста, поделитесь вашим номером телефона",
+        Markup.keyboard([Markup.button.contactRequest("Поделиться телефоном")]).oneTime().resize()
       );
       return ctx.wizard.next();
     };
@@ -139,16 +222,16 @@ export class BotService {
           phone = String(ctx.message.text);
         }
         if (!phone) {
-          await ctx.reply("Please send a phone number or tap the button.");
+          await ctx.reply("Отправьте номер телефона или нажмите на кнопку.");
           return;
         }
         const userRepo = AppDataSource.getRepository(User);
         await userRepo.update({ telegramId: String(ctx.from.id) as any }, { phone });
-        await ctx.reply("Registration complete. Thanks!", Markup.removeKeyboard());
+        await ctx.reply("Регистрация завершена. Спасибо!", Markup.removeKeyboard());
         return ctx.scene.leave();
       } catch (e) {
         console.error("Register save error", e);
-        await ctx.reply("Could not save phone. Try again later.");
+        await ctx.reply("Не удалось сохранить номер. Попробуйте позже.");
         return ctx.scene.leave();
       }
     };
@@ -157,27 +240,60 @@ export class BotService {
   }
 
   private createOrderWizard(): Scenes.WizardScene<Scenes.WizardContext> {
-    const askPickup = async (ctx: any) => {
-      await ctx.reply("Send pickup location (share location or type address).");
+    // Step 1: choose driver via inline keyboard
+    const chooseDriver = async (ctx: any) => {
+      const driverRepo = AppDataSource.getRepository(Driver);
+      const drivers = await driverRepo.find({ where: { status: 'APPROVED' }, order: { rating: 'DESC' } });
+      if (!drivers.length) {
+        await ctx.reply("Нет доступных водителей сейчас. Попробуйте позже.");
+        return ctx.scene.leave();
+      }
+      const rows = drivers.slice(0, 30).map((d: any) => [Markup.button.callback(`${d.name} (${d.phone})`, `drv:${d.id}`)]);
+      await ctx.reply(
+        'Выберите водителя:',
+        Markup.inlineKeyboard(rows)
+      );
       return ctx.wizard.next();
     };
 
-    const capturePickup = async (ctx: any) => {
+    // Step 2: handle driver selection callback then ask pickup
+    const captureDriverThenAskPickup = async (ctx: any) => {
       const state: any = (ctx.wizard.state ||= {});
+      if (ctx.updateType === 'callback_query' && ctx.callbackQuery?.data?.startsWith('drv:')) {
+        const id = Number(ctx.callbackQuery.data.split(':')[1]);
+        state.driverId = id;
+        await (ctx as any).answerCbQuery();
+        await ctx.reply(
+          "Отправьте место подачи (геолокацию) или напишите адрес.",
+          Markup.keyboard([Markup.button.locationRequest('Отправить локацию')]).oneTime().resize()
+        );
+        return ctx.wizard.next();
+      } else if (ctx.message?.text) {
+        // ignore stray text, wait for driver selection
+        return;
+      } else {
+        return;
+      }
+    };
+
+    // Step 3: capture pickup, ask dropoff
+    const capturePickup = async (ctx: any) => {
+      const state: any = ctx.wizard.state;
       if (ctx.message?.location) {
         const { latitude, longitude } = ctx.message.location;
         state.pickup = { latitude, longitude };
       } else if (ctx.message?.text) {
         state.pickup = { address: ctx.message.text };
       } else {
-        await ctx.reply("Please send a location or type an address.");
+        await ctx.reply("Отправьте геолокацию или напишите адрес.");
         return;
       }
-      await ctx.reply("Now send dropoff location (or type address).");
+      await ctx.reply("Теперь отправьте место назначения (геолокацию или адрес).");
       return ctx.wizard.next();
     };
 
-    const captureDropoff = async (ctx: any) => {
+    // Step 4: capture dropoff and create order
+    const captureDropoffAndCreate = async (ctx: any) => {
       const state: any = ctx.wizard.state;
       if (ctx.message?.location) {
         const { latitude, longitude } = ctx.message.location;
@@ -185,10 +301,10 @@ export class BotService {
       } else if (ctx.message?.text) {
         state.dropoff = { address: ctx.message.text };
       } else {
-        await ctx.reply("Please send a location or type an address.");
+        await ctx.reply("Отправьте геолокацию или напишите адрес.");
         return;
       }
-      await ctx.reply("Creating your order...");
+      await ctx.reply("Создаю ваш заказ...");
 
       try {
         const userRepo = AppDataSource.getRepository(User);
@@ -200,12 +316,19 @@ export class BotService {
         const orderRepo = AppDataSource.getRepository(Order);
         const order = orderRepo.create({
           user,
-          status: "PENDING",
+          status: state.driverId ? "ASSIGNED" : "PENDING",
           pickupLocation: state.pickup,
           dropoffLocation: state.dropoff,
           price: 0,
+          driver: state.driverId ? { id: state.driverId } as any : undefined,
         });
         await orderRepo.save(order);
+        try {
+          if (order.driver?.id) {
+            const io = getIO();
+            io.to(`driver:${order.driver.id}`).emit("order.assigned", order);
+          }
+        } catch {}
 
         const adminChatId = process.env.ADMIN_CHAT_ID;
         if (adminChatId) {
@@ -217,7 +340,9 @@ export class BotService {
             : state.dropoff?.address || "";
           await this.bot.telegram.sendMessage(
             adminChatId,
-            `New order #${order.id} from ${ctx.from.first_name || "User"} (@${ctx.from.username || "-"})\nPickup: ${mapsLinkPickup}\nDropoff: ${mapsLinkDrop}`
+            `Новый заказ #${order.id} от ${ctx.from.first_name || "Пользователь"} (@${ctx.from.username || "-"})\n` +
+            `Водитель: ${state.driverId ? `#${state.driverId}` : 'не выбран'}\n` +
+            `Откуда: ${mapsLinkPickup}\nКуда: ${mapsLinkDrop}`
           );
           if (state.pickup?.latitude) {
             await this.bot.telegram.sendLocation(adminChatId, state.pickup.latitude, state.pickup.longitude);
@@ -227,15 +352,21 @@ export class BotService {
           }
         }
 
-        await ctx.reply(`Order created. ID: ${order.id}. We will assign a driver soon.`);
+        await ctx.reply(`Заказ создан. Номер: ${order.id}. Спасибо!`);
       } catch (e) {
         console.error("Order creation error", e);
-        await ctx.reply("Could not create order. Please try again later.");
+        await ctx.reply("Не удалось создать заказ. Попробуйте позже.");
       }
 
       return ctx.scene.leave();
     };
 
-    return new Scenes.WizardScene("order-wizard", askPickup as any, capturePickup as any, captureDropoff as any);
+    return new Scenes.WizardScene(
+      "order-wizard",
+      chooseDriver as any,
+      captureDriverThenAskPickup as any,
+      capturePickup as any,
+      captureDropoffAndCreate as any
+    );
   }
 }

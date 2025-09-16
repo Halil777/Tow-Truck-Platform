@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Driver",
+    "slug": "driver-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android", "web"],
+    "splash": { "resizeMode": "contain" },
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true },
+    "android": { "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" } },
+    "web": { "bundler": "metro" },
+    "extra": {
+      "API_BASE_URL": "http://localhost:3000/api",
+      "SOCKET_URL": "http://localhost:3000"
+    }
+  }
+}
+

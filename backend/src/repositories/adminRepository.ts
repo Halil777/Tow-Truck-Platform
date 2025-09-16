@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Repository, ILike } from "typeorm";
 import { AppDataSource } from "../config/database";
 import { Admin } from "../entities/Admin";
 
@@ -9,7 +9,8 @@ export class AdminRepository {
   }
 
   findByEmail(email: string) {
-    return this.repository.findOne({ where: { email } });
+    // Case-insensitive match to avoid login issues due to casing
+    return this.repository.findOne({ where: { email: ILike(email) } });
   }
 
   create(data: Partial<Admin>) {

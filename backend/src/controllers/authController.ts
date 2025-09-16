@@ -25,5 +25,20 @@ export class AuthController {
       return res.status(401).json({ message: e?.message || "Refresh failed" });
     }
   }
+
+  // One-off secured endpoint to reset SUPER_ADMIN from env
+  static async resetSuperAdmin(req: Request, res: Response) {
+    try {
+      const token = (req.headers["x-seed-token"] as string) || "";
+      const expected = process.env.ADMIN_SEED_TOKEN || "";
+      if (!expected || token !== expected) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      await adminService.ensureAdminFromEnv();
+      return res.json({ message: "Super admin reset from env" });
+    } catch (e: any) {
+      return res.status(500).json({ message: e?.message || "Reset failed" });
+    }
+  }
 }
 

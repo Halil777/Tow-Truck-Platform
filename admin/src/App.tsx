@@ -18,7 +18,7 @@ import HeatmapPage from './pages/Heatmap';
 import SettingsSystemPage from './pages/SettingsSystem';
 import SettingsAdminsPage from './pages/SettingsAdmins';
 import Login from './pages/Login';
-import ProtectedRoute from './routes/ProtectedRoute';
+// Auth disabled temporarily: ProtectedRoute not used
 
 export default function App() {
   return (
@@ -27,14 +27,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
+          <Route path="/" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="users" element={<Users />} />
             <Route path="orders" element={<OrdersPage />} />

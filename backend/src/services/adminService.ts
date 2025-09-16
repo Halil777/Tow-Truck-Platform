@@ -14,7 +14,7 @@ export class AdminService {
   }
 
   async ensureAdminFromEnv() {
-    const email = process.env.SUPER_ADMIN_EMAIL || "admin@example.com";
+    const email = (process.env.SUPER_ADMIN_EMAIL || "admin@example.com").trim().toLowerCase();
     const password = process.env.SUPER_ADMIN_PASSWORD || "changeme";
     let admin = await this.adminRepo.findByEmail(email);
     const passwordHash = await bcrypt.hash(password, 10);
@@ -30,7 +30,7 @@ export class AdminService {
   }
 
   async seedSuperAdminIfEmpty() {
-    const email = process.env.SUPER_ADMIN_EMAIL || "admin@example.com";
+    const email = (process.env.SUPER_ADMIN_EMAIL || "admin@example.com").trim().toLowerCase();
     const password = process.env.SUPER_ADMIN_PASSWORD || "changeme";
     const existing = await this.adminRepo.findByEmail(email);
     if (!existing) {
@@ -40,14 +40,16 @@ export class AdminService {
   }
 
   async login(email: string, password: string) {
-    const admin = await this.adminRepo.findByEmail(email);
+    const emailNorm = (email || "").trim().toLowerCase();
+    const admin = await this.adminRepo.findByEmail(emailNorm);
     if (!admin || !admin.isActive) throw new Error("Invalid credentials");
     const ok = await bcrypt.compare(password, admin.passwordHash);
     if (!ok) throw new Error("Invalid credentials");
     const payload: JwtPayload = { sub: String(admin.id), role: admin.role, email: admin.email };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
-    const expiresAt = new Date(Date.now() + this.parseTtl(process.env.JWT_REFRESH_TTL || "30d"));
+    const ttlMs = this.parseTtl(process.env.JWT_REFRESH_TTL || "30d") || this.parseTtl("30d");
+    const expiresAt = new Date(Date.now() + ttlMs);
     await this.rtRepo.save({ token: refreshToken, admin, expiresAt });
     return { accessToken, refreshToken, admin: { id: admin.id, email: admin.email, role: admin.role, name: admin.name } };
   }

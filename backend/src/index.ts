@@ -1,10 +1,13 @@
 import "reflect-metadata";
 import express from "express";
+import http from "http";
+import cors from "cors";
 import { config } from "dotenv";
 import { initializeDatabase } from "./config/database";
 import { BotService } from "./services/botService";
 import { createBotRoutes } from "./routes/botRoutes";
 import { Logger } from "./utils/logger";
+import { initSocket } from "./utils/socket";
 import authRoutes from "./routes/authRoutes";
 import usersRoutes from "./routes/usersRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
@@ -20,7 +23,7 @@ import notificationsRoutes from "./routes/notificationsRoutes";
 config();
 
 const PORT = process.env.PORT || 3000;
-const BOT_TOKEN = process.env.BOT_TOKEN;
+const BOT_TOKEN = process.env.BOT_TOKEN || "7406496663:AAEnqhk-qAuMxwelkNq4n9XUVc41oh2X3nk";
 
 if (!BOT_TOKEN) {
   Logger.error("BOT_TOKEN environment variable gerek!");
@@ -34,6 +37,18 @@ async function bootstrap(): Promise<void> {
 
     // Express app
     const app = express();
+    const server = http.createServer(app);
+    const io = initSocket(server);
+
+    io.on("connection", (socket) => {
+      try {
+        const driverIdQ = Number((socket.handshake.query as any).driverId);
+        if (driverIdQ) socket.join(`driver:${driverIdQ}`);
+        socket.on("driver:join", (id: number) => {
+          if (id) socket.join(`driver:${id}`);
+        });
+      } catch {}
+    });
 
     // Bot service
     const botService = new BotService(BOT_TOKEN as string);
@@ -41,9 +56,11 @@ async function bootstrap(): Promise<void> {
 
     // Routes
     app.use(express.json());
-    // Ensure SUPER_ADMIN from env exists and is active
+    // Enable CORS for dev tools and web Expo
+    app.use(cors({ origin: true }));
+    // Seed SUPER_ADMIN only if missing (avoid overwriting password on each start)
     const adminService = new AdminService();
-    await adminService.ensureAdminFromEnv();
+    await adminService.seedSuperAdminIfEmpty();
 
     // API routes
     app.use("/api", createBotRoutes(botService));
@@ -66,7 +83,7 @@ async function bootstrap(): Promise<void> {
     });
 
     // Server start
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       Logger.info(`Server http://localhost:${PORT} portunda işleýär`);
     });
   } catch (error) {

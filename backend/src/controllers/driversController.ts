@@ -9,6 +9,15 @@ export class DriversController {
     res.json(drivers);
   }
 
+  static async getByPhone(req: Request, res: Response) {
+    const phone = String(req.params.phone || '').trim();
+    if (!phone) return res.status(400).json({ message: 'phone required' });
+    const repo = AppDataSource.getRepository(Driver);
+    const driver = await repo.findOne({ where: { phone } });
+    if (!driver) return res.status(404).json({ message: 'Not found' });
+    res.json(driver);
+  }
+
   static async create(req: Request, res: Response) {
     const repo = AppDataSource.getRepository(Driver);
     const driver = repo.create(req.body);

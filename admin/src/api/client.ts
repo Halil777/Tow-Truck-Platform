@@ -117,6 +117,30 @@ export const fetchDrivers = async (): Promise<Driver[]> => {
   return data;
 };
 
+export const createDriver = async (payload: Partial<Driver>) => {
+  const { data } = await api.post<Driver>('/drivers', payload);
+  return data;
+};
+
+export const updateDriver = async (id: number, payload: Partial<Driver>) => {
+  const { data } = await api.patch<Driver>(`/drivers/${id}`, payload);
+  return data;
+};
+
+export const deleteDriver = async (id: number) => {
+  await api.delete(`/drivers/${id}`);
+};
+
+export const approveDriver = async (id: number) => {
+  const { data } = await api.post<{ message: string }>(`/drivers/${id}/approve`, {});
+  return data;
+};
+
+export const rejectDriver = async (id: number) => {
+  const { data } = await api.post<{ message: string }>(`/drivers/${id}/reject`, {});
+  return data;
+};
+
 // --- Orders ---
 export type Order = {
   id: number;
@@ -128,8 +152,13 @@ export type Order = {
   dropoffLocation?: any;
 };
 
-export const fetchOrders = async (): Promise<Order[]> => {
-  const { data } = await api.get<Order[]>('/orders');
+export const fetchOrders = async (
+  params?: { status?: string; driverId?: number }
+): Promise<Order[]> => {
+  const { data } = await api.get<Order[]>(
+    '/orders',
+    params ? { params } : undefined
+  );
   return data;
 };
 
