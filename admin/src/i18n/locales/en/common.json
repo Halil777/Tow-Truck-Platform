@@ -1,0 +1,22 @@
+{
+  "appTitle": "Admin Panel",
+  "dashboard": "Dashboard",
+  "users": "Users",
+  "login": "Login",
+  "email": "Email",
+  "password": "Password",
+  "signIn": "Sign In",
+  "signOut": "Sign Out",
+  "language": "Language",
+  "theme": "Theme",
+  "light": "Light",
+  "dark": "Dark",
+  "system": "System",
+  "welcome": "Welcome",
+  "botStatus": "Bot Status",
+  "fetchBotInfo": "Fetch Bot Info",
+  "usersCount": "Users Count",
+  "suspend": "Suspend",
+  "unsuspend": "Unsuspend",
+  "search": "Search"
+}
