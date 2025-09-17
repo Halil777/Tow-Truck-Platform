@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+﻿import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import Table from '../components/ui/Table';
 import Badge from '../components/ui/Badge';
 import { fetchOrders, type Order } from '../api/client';
@@ -8,19 +9,35 @@ const STATUS_COLORS: Record<string, 'gray' | 'green' | 'red' | 'blue' | 'yellow'
   PENDING: 'yellow',
   ASSIGNED: 'blue',
   IN_PROGRESS: 'blue',
+  AWAITING_PAYMENT: 'yellow',
   COMPLETED: 'green',
   CANCELLED: 'red',
 };
 
+const PAYMENT_COLORS: Record<string, 'gray' | 'green' | 'red' | 'yellow'> = {
+  SUCCESS: 'green',
+  PENDING: 'yellow',
+  FAILED: 'red',
+};
+
+const STATUS_FILTERS = ['ALL', 'PENDING', 'ASSIGNED', 'IN_PROGRESS', 'AWAITING_PAYMENT', 'COMPLETED', 'CANCELLED'] as const;
+
+type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+type PaymentStatus = 'SUCCESS' | 'PENDING' | 'FAILED' | string;
+
+type OrderRow = Order & { payment?: { status?: PaymentStatus } };
+
 export default function OrdersPage() {
-  const [status, setStatus] = useState<string>('ALL');
-  const [driverId, setDriverId] = useState<string>('');
+  const { t, i18n } = useTranslation();
+  const [status, setStatus] = useState<StatusFilter>('ALL');
+  const [driverId, setDriverId] = useState('');
 
   const queryParams = useMemo(() => {
-    const p: any = {};
-    if (status && status !== 'ALL') p.status = status;
-    if (driverId && Number(driverId) > 0) p.driverId = Number(driverId);
-    return p as { status?: string; driverId?: number } | undefined;
+    const params: { status?: string; driverId?: number } = {};
+    if (status && status !== 'ALL') params.status = status;
+    if (driverId && Number(driverId) > 0) params.driverId = Number(driverId);
+    return Object.keys(params).length ? params : undefined;
   }, [status, driverId]);
 
   const orders = useQuery({
@@ -28,108 +45,182 @@ export default function OrdersPage() {
     queryFn: () => fetchOrders(queryParams),
   });
 
+  const amountFormatter = useMemo(() => {
+    try {
+      return new Intl.NumberFormat(i18n.language, {
+        style: 'currency',
+        currency: 'RUB',
+        maximumFractionDigits: 2,
+      });
+    } catch {
+      return new Intl.NumberFormat(i18n.language, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+  }, [i18n.language]);
+
+  const formatAmount = useCallback((value: number | undefined | null) => {
+    if (value == null) return '—';
+    return amountFormatter.format(value);
+  }, [amountFormatter]);
+
+  const formatDate = useCallback((value: string) => {
+    try {
+      return new Date(value).toLocaleString(i18n.language);
+    } catch {
+      return value;
+    }
+  }, [i18n.language]);
+
+  const formatStatusLabel = useCallback(
+    (value: string) => t(`ordersPage.statusLabels.${value}`, { defaultValue: value }),
+    [t]
+  );
+
+  const formatPaymentLabel = useCallback(
+    (value: PaymentStatus) => t(`ordersPage.paymentStatus.${value}`, { defaultValue: value }),
+    [t]
+  );
+
+  const locationFallback = t('ordersPage.locationFallback');
+
+  const formatLocation = useCallback((loc: any) => {
+    if (!loc) return locationFallback;
+    if (typeof loc === 'string') {
+      const trimmed = loc.trim();
+      return trimmed.length ? trimmed : locationFallback;
+    }
+    const candidates = [
+      loc.label,
+      loc.name,
+      loc.title,
+      loc.description,
+      loc.address,
+      loc.placeName,
+      loc.displayName,
+      loc.locationName,
+      loc.formattedAddress,
+      [loc.street, loc.houseNumber].filter(Boolean).join(' '),
+      [loc.street, loc.city].filter(Boolean).join(', '),
+      [loc.city, loc.region].filter(Boolean).join(', '),
+    ]
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean);
+
+    if (candidates.length > 0) {
+      return candidates[0];
+    }
+
+    const lat = loc.lat ?? loc.latitude;
+    const lng = loc.lng ?? loc.longitude;
+    if (lat != null && lng != null) {
+      const latNum = Number(lat);
+      const lngNum = Number(lng);
+      if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
+        return `${latNum.toFixed(4)}, ${lngNum.toFixed(4)}`;
+      }
+    }
+
+    return locationFallback;
+  }, [locationFallback]);
+
   const columns = useMemo(() => [
-    { header: 'ID', key: 'id' },
+    { header: t('ordersPage.table.id'), key: 'id' },
     {
-      header: 'User',
+      header: t('ordersPage.table.user'),
       key: 'user',
-      render: (o: Order) => {
-        const u: any = o.user || {};
-        const name = [u.firstName, u.lastName].filter(Boolean).join(' ');
-        return name || u.username || u.phone || '-';
+      render: (o: OrderRow) => {
+        const user = o.user || {};
+        const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        return name || user.username || user.phone || '—';
       },
     },
     {
-      header: 'Driver',
+      header: t('ordersPage.table.driver'),
       key: 'driver',
-      render: (o: Order) => (o.driver ? o.driver.name : '-'),
+      render: (o: OrderRow) => o.driver?.name || '—',
     },
     {
-      header: 'Status',
+      header: t('ordersPage.table.status'),
       key: 'status',
-      render: (o: Order) => <Badge color={STATUS_COLORS[o.status] || 'gray'}>{o.status}</Badge>,
+      render: (o: OrderRow) => (
+        <Badge color={STATUS_COLORS[o.status] || 'gray'}>{formatStatusLabel(o.status)}</Badge>
+      ),
     },
     {
-      header: 'Created',
+      header: t('ordersPage.table.created'),
       key: 'createdAt',
-      render: (o: Order) => new Date(o.createdAt).toLocaleString(),
+      render: (o: OrderRow) => formatDate(o.createdAt),
     },
     {
-      header: 'Price, ₽',
+      header: t('ordersPage.table.price'),
       key: 'price',
-      render: (o: any) => (o.price ? o.price.toFixed(2) : '-')
+      render: (o: OrderRow) => formatAmount(o.price),
     },
     {
-      header: 'Payment',
+      header: t('ordersPage.table.payment'),
       key: 'payment',
-      render: (o: any) => o.payment?.status ? (
-        <Badge color={o.payment.status === 'SUCCESS' ? 'green' : o.payment.status === 'PENDING' ? 'yellow' : 'red'}>
-          {o.payment.status}
-        </Badge>
-      ) : '-'
+      render: (o: OrderRow) => {
+        const statusValue = o.payment?.status;
+        if (!statusValue) return '—';
+        return (
+          <Badge color={PAYMENT_COLORS[statusValue] || 'gray'}>
+            {formatPaymentLabel(statusValue)}
+          </Badge>
+        );
+      },
     },
     {
-      header: 'Pickup',
+      header: t('ordersPage.table.pickup'),
       key: 'pickupLocation',
-      render: (o: Order) => formatLocation(o.pickupLocation),
+      render: (o: OrderRow) => formatLocation(o.pickupLocation),
     },
     {
-      header: 'Dropoff',
+      header: t('ordersPage.table.dropoff'),
       key: 'dropoffLocation',
-      render: (o: Order) => formatLocation(o.dropoffLocation),
+      render: (o: OrderRow) => formatLocation(o.dropoffLocation),
     },
-  ], []);
+  ], [t, formatAmount, formatDate, formatLocation, formatPaymentLabel, formatStatusLabel]);
 
   return (
     <div className="stack">
-      <h2>Orders</h2>
+      <h2>{t('ordersPage.title')}</h2>
 
       <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
         <label className="stack">
-          <span className="text-sm">Status</span>
-          <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="ALL">All</option>
-            <option value="PENDING">PENDING</option>
-            <option value="ASSIGNED">ASSIGNED</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="AWAITING_PAYMENT">AWAITING_PAYMENT</option>
-            <option value="COMPLETED">COMPLETED</option>
-            <option value="CANCELLED">CANCELLED</option>
+          <span className="text-sm">{t('ordersPage.filters.status')}</span>
+          <select className="input" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}>
+            {STATUS_FILTERS.map((option) => (
+              <option key={option} value={option}>
+                {t(`ordersPage.filters.statusOptions.${option}`)}
+              </option>
+            ))}
           </select>
         </label>
         <label className="stack">
-          <span className="text-sm">Driver ID</span>
+          <span className="text-sm">{t('ordersPage.filters.driverId')}</span>
           <input
             className="input"
             type="number"
             min={0}
             value={driverId}
             onChange={(e) => setDriverId(e.target.value)}
-            placeholder="e.g. 12"
+            placeholder={t('ordersPage.filters.driverPlaceholder')}
           />
         </label>
         <button className="button" onClick={() => orders.refetch()} disabled={orders.isFetching}>
-          {orders.isFetching ? 'Loading...' : 'Refresh'}
+          {orders.isFetching ? t('ordersPage.actions.refreshing') : t('ordersPage.actions.refresh')}
         </button>
       </div>
 
-      {orders.isLoading && <div className="muted">Loading orders...</div>}
-      {orders.isError && <div className="text-red-600">Failed to load orders</div>}
+      {orders.isLoading && <div className="muted">{t('ordersPage.messages.loading')}</div>}
+      {orders.isError && <div className="text-red-600">{t('ordersPage.messages.error')}</div>}
 
       {orders.data && (
-        <Table<Order> data={orders.data} columns={columns as any} pageSize={10} />
+        <Table<OrderRow> data={orders.data} columns={columns as any} pageSize={10} />
       )}
     </div>
   );
-}
-
-function formatLocation(loc: any): string {
-  if (!loc) return '-';
-  if (typeof loc === 'string') return loc;
-  const name = loc.name || loc.address || '';
-  const lat = loc.lat ?? loc.latitude;
-  const lng = loc.lng ?? loc.longitude;
-  const coord = lat != null && lng != null ? `(${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})` : '';
-  return [name, coord].filter(Boolean).join(' ');
 }
 

@@ -1,6 +1,6 @@
 {
-  "appTitle": "Админ Панель",
-  "dashboard": "Дэшборд",
+  "appTitle": "Панель администратора",
+  "dashboard": "Главная",
   "users": "Пользователи",
   "login": "Вход",
   "email": "Эл. почта",
@@ -14,9 +14,175 @@
   "system": "Системная",
   "welcome": "Добро пожаловать",
   "botStatus": "Статус бота",
-  "fetchBotInfo": "Получить инфо бота",
+  "fetchBotInfo": "Получить информацию о боте",
   "usersCount": "Количество пользователей",
   "suspend": "Заблокировать",
   "unsuspend": "Разблокировать",
-  "search": "Поиск"
+  "search": "Поиск",
+  "sidebar": {
+    "orders": {
+      "title": "Заказы",
+      "active": "Активные заказы",
+      "completed": "Завершённые заказы",
+      "cancelled": "Отменённые заказы"
+    },
+    "drivers": {
+      "title": "Водители",
+      "list": "Список водителей",
+      "online": "Водители онлайн",
+      "performance": "Эффективность водителей"
+    },
+    "users": {
+      "title": "Пользователи",
+      "registered": "Зарегистрированные пользователи",
+      "suspended": "Заблокированные пользователи"
+    },
+    "finance": {
+      "title": "Финансы",
+      "payments": "Платежи",
+      "payouts": "Выплаты",
+      "transactions": "Транзакции"
+    },
+    "analytics": {
+      "title": "Аналитика",
+      "revenue": "Динамика выручки",
+      "drivers": "Активность водителей",
+      "heatmap": "Тепловая карта заказов"
+    },
+    "settings": {
+      "title": "Настройки",
+      "system": "Системные настройки",
+      "admins": "Управление администраторами"
+    }
+  },
+  "dashboardPage": {
+    "loading": "Загрузка...",
+    "metrics": {
+      "activeOrders": "Активные заказы",
+      "driversOnline": "Водители онлайн",
+      "registeredUsers": "Зарегистрированные пользователи",
+      "revenueToday": "Выручка сегодня"
+    },
+    "latestOrders": {
+      "title": "Последние заказы",
+      "columns": {
+        "id": "ID",
+        "user": "Пользователь",
+        "driver": "Водитель",
+        "status": "Статус",
+        "created": "Создан"
+      }
+    },
+    "driversActivity": "Активность водителей",
+    "revenue7d": "Выручка (7 дней)",
+    "systemAlerts": {
+      "title": "Системные предупреждения",
+      "pendingApproval": "Водители ожидают одобрения",
+      "paymentsFailed": "Есть неуспешные платежи",
+      "noDrivers": "Нет водителей онлайн"
+    },
+    "bot": {
+      "loadError": "Не удалось загрузить данные бота"
+    }
+  },
+  "analyticsRevenuePage": {
+    "title": "Динамика выручки",
+    "rangeLabel": "Период",
+    "ranges": {
+      "7": "Последние 7 дней",
+      "30": "Последние 30 дней",
+      "90": "Последние 90 дней"
+    },
+    "total": "Общая выручка",
+    "average": "Средняя выручка в день",
+    "bestDay": "Лучший день",
+    "noData": "Нет данных за выбранный период",
+    "error": "Не удалось загрузить данные по выручке",
+    "table": {
+      "title": "Дневная разбивка",
+      "date": "Дата",
+      "amount": "Сумма"
+    },
+    "loading": "Загрузка..."
+  },
+  "analyticsDriverActivityPage": {
+    "title": "Активность водителей",
+    "rangeLabel": "Период",
+    "ranges": {
+      "7": "Последние 7 дней",
+      "30": "Последние 30 дней",
+      "90": "Последние 90 дней"
+    },
+    "totalDrivers": "Водителей за период",
+    "onlineDrivers": "Водители онлайн",
+    "completed": "Выполненные поездки",
+    "revenue": "Выручка водителей",
+    "noData": "Нет активности за выбранный период",
+    "error": "Не удалось загрузить данные по активности",
+    "loading": "Загрузка...",
+    "chartTitle": "Лучшие водители по выполненным заказам",
+    "table": {
+      "title": "Детализация по водителям",
+      "driver": "Водитель",
+      "phone": "Телефон",
+      "status": "Статус",
+      "online": "Онлайн",
+      "completed": "Выполнено",
+      "active": "Активно",
+      "cancelled": "Отменено",
+      "revenue": "Выручка"
+    },
+    "onlineYes": "Онлайн",
+    "onlineNo": "Офлайн"
+  },
+  "ordersPage": {
+    "title": "Заказы",
+    "filters": {
+      "status": "Статус",
+      "driverId": "ID водителя",
+      "driverPlaceholder": "например 12",
+      "statusOptions": {
+        "ALL": "Все статусы",
+        "PENDING": "В ожидании",
+        "ASSIGNED": "Назначен",
+        "IN_PROGRESS": "Выполняется",
+        "AWAITING_PAYMENT": "Ожидает оплаты",
+        "COMPLETED": "Завершён",
+        "CANCELLED": "Отменён"
+      }
+    },
+    "actions": {
+      "refresh": "Обновить",
+      "refreshing": "Загрузка..."
+    },
+    "table": {
+      "id": "ID",
+      "user": "Пользователь",
+      "driver": "Водитель",
+      "status": "Статус",
+      "created": "Создан",
+      "price": "Стоимость",
+      "payment": "Оплата",
+      "pickup": "Подача",
+      "dropoff": "Высадка"
+    },
+    "messages": {
+      "loading": "Загрузка заказов...",
+      "error": "Не удалось загрузить заказы"
+    },
+    "statusLabels": {
+      "PENDING": "В ожидании",
+      "ASSIGNED": "Назначен",
+      "IN_PROGRESS": "Выполняется",
+      "AWAITING_PAYMENT": "Ожидает оплаты",
+      "COMPLETED": "Завершён",
+      "CANCELLED": "Отменён"
+    },
+    "paymentStatus": {
+      "SUCCESS": "Оплачен",
+      "PENDING": "В ожидании",
+      "FAILED": "Неудача"
+    },
+    "locationFallback": "Не указано"
+  }
 }

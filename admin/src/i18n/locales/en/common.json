@@ -18,5 +18,171 @@
   "usersCount": "Users Count",
   "suspend": "Suspend",
   "unsuspend": "Unsuspend",
-  "search": "Search"
+  "search": "Search",
+  "sidebar": {
+    "orders": {
+      "title": "Orders",
+      "active": "Active Orders",
+      "completed": "Completed Orders",
+      "cancelled": "Canceled Orders"
+    },
+    "drivers": {
+      "title": "Drivers",
+      "list": "Driver List",
+      "online": "Drivers Online",
+      "performance": "Driver Performance"
+    },
+    "users": {
+      "title": "Users",
+      "registered": "Registered Users",
+      "suspended": "Suspended Users"
+    },
+    "finance": {
+      "title": "Finance",
+      "payments": "Payments",
+      "payouts": "Payouts",
+      "transactions": "Transactions"
+    },
+    "analytics": {
+      "title": "Analytics",
+      "revenue": "Revenue Trends",
+      "drivers": "Driver Activity",
+      "heatmap": "Order Heatmap"
+    },
+    "settings": {
+      "title": "Settings",
+      "system": "System Settings",
+      "admins": "Admin Management"
+    }
+  },
+  "dashboardPage": {
+    "loading": "Loading...",
+    "metrics": {
+      "activeOrders": "Active Orders",
+      "driversOnline": "Drivers Online",
+      "registeredUsers": "Registered Users",
+      "revenueToday": "Revenue Today"
+    },
+    "latestOrders": {
+      "title": "Latest Orders",
+      "columns": {
+        "id": "ID",
+        "user": "User",
+        "driver": "Driver",
+        "status": "Status",
+        "created": "Created"
+      }
+    },
+    "driversActivity": "Drivers Activity",
+    "revenue7d": "Revenue (7d)",
+    "systemAlerts": {
+      "title": "System Alerts",
+      "pendingApproval": "Drivers pending approval",
+      "paymentsFailed": "Some payments failed",
+      "noDrivers": "No drivers online"
+    },
+    "bot": {
+      "loadError": "Failed to load bot info"
+    }
+  },
+  "analyticsRevenuePage": {
+    "title": "Revenue Trends",
+    "rangeLabel": "Range",
+    "ranges": {
+      "7": "Last 7 days",
+      "30": "Last 30 days",
+      "90": "Last 90 days"
+    },
+    "total": "Total revenue",
+    "average": "Average per day",
+    "bestDay": "Best day",
+    "noData": "No revenue recorded for this range",
+    "error": "Failed to load revenue data",
+    "table": {
+      "title": "Daily breakdown",
+      "date": "Date",
+      "amount": "Amount"
+    },
+    "loading": "Loading..."
+  },
+  "analyticsDriverActivityPage": {
+    "title": "Driver Activity",
+    "rangeLabel": "Range",
+    "ranges": {
+      "7": "Last 7 days",
+      "30": "Last 30 days",
+      "90": "Last 90 days"
+    },
+    "totalDrivers": "Drivers in range",
+    "onlineDrivers": "Online drivers",
+    "completed": "Completed rides",
+    "revenue": "Revenue by drivers",
+    "noData": "No driver activity recorded for this range",
+    "error": "Failed to load driver activity data",
+    "loading": "Loading...",
+    "chartTitle": "Top drivers by completed rides",
+    "table": {
+      "title": "Driver breakdown",
+      "driver": "Driver",
+      "phone": "Phone",
+      "status": "Status",
+      "online": "Online",
+      "completed": "Completed",
+      "active": "Active",
+      "cancelled": "Cancelled",
+      "revenue": "Revenue"
+    },
+    "onlineYes": "Online",
+    "onlineNo": "Offline"
+  },
+  "ordersPage": {
+    "title": "Orders",
+    "filters": {
+      "status": "Status",
+      "driverId": "Driver ID",
+      "driverPlaceholder": "e.g. 12",
+      "statusOptions": {
+        "ALL": "All statuses",
+        "PENDING": "Pending",
+        "ASSIGNED": "Assigned",
+        "IN_PROGRESS": "In progress",
+        "AWAITING_PAYMENT": "Awaiting payment",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Cancelled"
+      }
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "refreshing": "Loading..."
+    },
+    "table": {
+      "id": "ID",
+      "user": "User",
+      "driver": "Driver",
+      "status": "Status",
+      "created": "Created",
+      "price": "Price",
+      "payment": "Payment",
+      "pickup": "Pickup",
+      "dropoff": "Drop-off"
+    },
+    "messages": {
+      "loading": "Loading orders...",
+      "error": "Failed to load orders"
+    },
+    "statusLabels": {
+      "PENDING": "Pending",
+      "ASSIGNED": "Assigned",
+      "IN_PROGRESS": "In progress",
+      "AWAITING_PAYMENT": "Awaiting payment",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "paymentStatus": {
+      "SUCCESS": "Paid",
+      "PENDING": "Pending",
+      "FAILED": "Failed"
+    },
+    "locationFallback": "Not specified"
+  }
 }

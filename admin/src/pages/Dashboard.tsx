@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import Card from '../components/ui/Card';
@@ -45,34 +45,34 @@ export default function Dashboard() {
 
       {/* Metrics */}
       <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
-        <Card title="Active Orders"><h1>{activeOrders}</h1></Card>
-        <Card title="Drivers Online"><h1>{onlineDrivers}</h1></Card>
-        <Card title="Registered Users"><h1>{users.data?.length ?? '—'}</h1></Card>
-        <Card title="Revenue Today"><h1>{sumToday(payments.data || []).toFixed(2)}</h1></Card>
+        <Card title={t('dashboardPage.metrics.activeOrders')}><h1>{activeOrders}</h1></Card>
+        <Card title={t('dashboardPage.metrics.driversOnline')}><h1>{onlineDrivers}</h1></Card>
+        <Card title={t('dashboardPage.metrics.registeredUsers')}><h1>{users.data?.length ?? '—'}</h1></Card>
+        <Card title={t('dashboardPage.metrics.revenueToday')}><h1>{sumToday(payments.data || []).toFixed(2)}</h1></Card>
       </div>
 
       {/* Orders Overview */}
-      <Card title="Latest Orders">
+      <Card title={t('dashboardPage.latestOrders.title')}>
         {orders.isLoading ? (
-          <div className="muted">Loading...</div>
+          <div className="muted">{t('dashboardPage.loading')}</div>
         ) : (
           <Table
             data={latestOrders}
             columns={[
-              { header: 'ID', key: 'id' },
+              { header: t('dashboardPage.latestOrders.columns.id'), key: 'id' },
               {
-                header: 'User',
+                header: t('dashboardPage.latestOrders.columns.user'),
                 key: 'user',
                 render: (o: any) => [o.user?.firstName, o.user?.lastName].filter(Boolean).join(' ') || o.user?.username || '-'
               },
               {
-                header: 'Driver',
+                header: t('dashboardPage.latestOrders.columns.driver'),
                 key: 'driver',
                 render: (o: any) => o.driver?.name || '-'
               },
-              { header: 'Status', key: 'status' },
+              { header: t('dashboardPage.latestOrders.columns.status'), key: 'status' },
               {
-                header: 'Created',
+                header: t('dashboardPage.latestOrders.columns.created'),
                 key: 'createdAt',
                 render: (o: any) => new Date(o.createdAt).toLocaleString(),
               },
@@ -83,9 +83,9 @@ export default function Dashboard() {
       </Card>
 
       {/* Drivers Activity */}
-      <Card title="Drivers Activity">
+      <Card title={t('dashboardPage.driversActivity')}>
         {drivers.isLoading ? (
-          <div className="muted">Loading...</div>
+          <div className="muted">{t('dashboardPage.loading')}</div>
         ) : (
           <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
             {(drivers.data || [])
@@ -102,27 +102,27 @@ export default function Dashboard() {
       </Card>
 
       {/* Revenue Chart */}
-      <Card title="Revenue (7d)">
+      <Card title={t('dashboardPage.revenue7d')}>
         {payments.isLoading ? (
-          <div className="muted">Loading...</div>
+          <div className="muted">{t('dashboardPage.loading')}</div>
         ) : (
-          <MiniBarChart data={revenueByDay} />
+          <MiniBarChart data={revenueByDay} label={t('dashboardPage.revenue7d')} />
         )}
       </Card>
 
       {/* System Alerts */}
-      <Card title="System Alerts">
+      <Card title={t('dashboardPage.systemAlerts.title')}>
         <ul>
-          {drivers.data?.some((d) => d.status !== 'APPROVED') && <li>Drivers pending approval</li>}
-          {payments.data?.some((p) => p.status === 'FAILED') && <li>Some payments failed</li>}
-          {!drivers.data?.some((d) => d.online) && <li>No drivers online</li>}
+          {drivers.data?.some((d) => d.status !== 'APPROVED') && <li>{t('dashboardPage.systemAlerts.pendingApproval')}</li>}
+          {payments.data?.some((p) => p.status === 'FAILED') && <li>{t('dashboardPage.systemAlerts.paymentsFailed')}</li>}
+          {!drivers.data?.some((d) => d.online) && <li>{t('dashboardPage.systemAlerts.noDrivers')}</li>}
         </ul>
       </Card>
 
       {/* Bot status */}
       <Card title={t('botStatus')} extra={<button onClick={() => bot.refetch()} disabled={bot.isFetching}>{t('fetchBotInfo')}</button>}>
-        {bot.isLoading && <div className="muted">Loading...</div>}
-        {bot.isError && <div className="muted">Failed to load bot info</div>}
+        {bot.isLoading && <div className="muted">{t('dashboardPage.loading')}</div>}
+        {bot.isError && <div className="muted">{t('dashboardPage.bot.loadError')}</div>}
         {bot.data && (
           <pre className="card" style={{ overflowX: 'auto' }}>{JSON.stringify(bot.data, null, 2)}</pre>
         )}
@@ -141,13 +141,13 @@ function sumToday(payments: any[]): number {
   }, 0);
 }
 
-function MiniBarChart({ data }: { data: { date: string; value: number }[] }) {
+function MiniBarChart({ data, label }: { data: { date: string; value: number }[]; label: string }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   const w = 360;
   const h = 120;
   const barW = Math.floor(w / data.length) - 4;
   return (
-    <svg width={w} height={h} role="img" aria-label="bar-chart">
+    <svg width={w} height={h} role="img" aria-label={label}>
       {data.map((d, i) => {
         const x = i * (barW + 4) + 2;
         const barH = Math.round((d.value / max) * (h - 24));
@@ -164,3 +164,8 @@ function MiniBarChart({ data }: { data: { date: string; value: number }[] }) {
     </svg>
   );
 }
+
+
+
+
+

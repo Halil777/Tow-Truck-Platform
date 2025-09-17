@@ -3,9 +3,9 @@ import axios from 'axios';
 const getBaseURL = () => {
   try {
     const cfg = require('../app.json');
-    return cfg.expo?.extra?.API_BASE_URL || 'http://localhost:3000/api';
+    return cfg.expo?.extra?.API_BASE_URL || 'http://172.27.80.1:3000/api';
   } catch {
-    return 'http://localhost:3000/api';
+    return 'http://172.27.80.1:3000/api';
   }
 };
 
@@ -42,3 +42,4 @@ export const payOrder = async (orderId, method) => {
 };
 
 export default api;
+

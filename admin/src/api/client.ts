@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -180,5 +180,52 @@ export type Summary = {
 };
 export const fetchSummary = async (): Promise<Summary> => {
   const { data } = await api.get<Summary>('/analytics/summary');
+  return data;
+};
+
+export type RevenueTrendsPoint = { date: string; total: number };
+export type RevenueTrendsResponse = {
+  start: string;
+  end: string;
+  days: number;
+  total: number;
+  average: number;
+  currency?: string;
+  points: RevenueTrendsPoint[];
+};
+
+export const fetchRevenueTrends = async (params?: { start?: string; end?: string; days?: number }) => {
+  const { data } = await api.get<RevenueTrendsResponse>('/analytics/revenue', params ? { params } : undefined);
+  return data;
+};
+
+export type DriverActivityItem = {
+  driverId: number;
+  name: string;
+  phone?: string;
+  status?: string;
+  online: boolean;
+  rating?: number | null;
+  completed: number;
+  inProgress: number;
+  assigned: number;
+  cancelled: number;
+  revenue: number;
+};
+
+export type DriverActivityResponse = {
+  start: string;
+  end: string;
+  days: number;
+  totalDrivers: number;
+  onlineDrivers: number;
+  totalCompleted: number;
+  totalRevenue: number;
+  currency?: string;
+  items: DriverActivityItem[];
+};
+
+export const fetchDriverActivity = async (params?: { start?: string; end?: string; days?: number; limit?: number }) => {
+  const { data } = await api.get<DriverActivityResponse>('/analytics/driver-activity', params ? { params } : undefined);
   return data;
 };

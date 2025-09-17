@@ -11,9 +11,10 @@
     "android": { "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" } },
     "web": { "bundler": "metro" },
     "extra": {
-      "API_BASE_URL": "http://localhost:3000/api",
-      "SOCKET_URL": "http://localhost:3000"
+      "API_BASE_URL": "http://172.27.80.1:3000/api",
+      "SOCKET_URL": "http://172.27.80.1:3000"
     }
   }
 }
+
 

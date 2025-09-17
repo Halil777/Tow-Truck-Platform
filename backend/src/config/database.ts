@@ -14,7 +14,8 @@ config();
 const DB_HOST = process.env.DB_HOST || "localhost";
 const DB_PORT = parseInt(process.env.DB_PORT || "5432", 10);
 const DB_USER = process.env.DB_USER || "postgres";
-const DB_PASS = process.env.DB_PASS || "QwertyWeb123_321";
+// const DB_PASS = process.env.DB_PASS || "QwertyWeb123_321";
+const DB_PASS = process.env.DB_PASS || "";
 const DB_NAME = process.env.DB_NAME || "tow_truck";
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -25,7 +26,16 @@ export const AppDataSource = new DataSource({
   username: DB_USER,
   password: DB_PASS,
   database: DB_NAME,
-  entities: [User, Admin, RefreshToken, Driver, Order, Payment, Review, Setting],
+  entities: [
+    User,
+    Admin,
+    RefreshToken,
+    Driver,
+    Order,
+    Payment,
+    Review,
+    Setting,
+  ],
   synchronize: NODE_ENV !== "production",
   logging: NODE_ENV !== "production",
 });
@@ -39,4 +49,3 @@ export const initializeDatabase = async (): Promise<void> => {
     throw error;
   }
 };
-
