@@ -33,6 +33,9 @@ export class User {
   @Column({ nullable: true, length: 32 })
   phone?: string;
 
+  @Column({ type: "varchar", length: 5, default: "ru" })
+  language!: string;
+
   @Column({ default: false })
   isBot!: boolean;
 

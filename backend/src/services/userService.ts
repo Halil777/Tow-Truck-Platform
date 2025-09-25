@@ -13,11 +13,14 @@ export class UserService {
       let user = await this.userRepository.findByTelegramId(telegramUser.id);
 
       if (!user) {
+        const code = String(telegramUser.language_code || "").toLowerCase();
+        const language = /uz/.test(code) ? "uz" : "ru";
         user = await this.userRepository.createUser({
           telegramId: String(telegramUser.id),
           firstName: telegramUser.first_name,
           lastName: telegramUser.last_name || "",
           username: telegramUser.username || "",
+          language,
           isBot: telegramUser.is_bot,
         });
       } else {

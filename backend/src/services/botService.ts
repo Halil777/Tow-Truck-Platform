@@ -5,7 +5,9 @@ import { AppDataSource } from "../config/database";
 import { Order } from "../entities/Order";
 import { User } from "../entities/User";
 import { Driver } from "../entities/Driver";
+import { Payment } from "../entities/Payment";
 import { getIO } from "../utils/socket";
+import { t, setUserLanguageByTelegramId, getLangName } from "../utils/i18n";
 
 export class BotService {
   private bot: Telegraf;
@@ -16,7 +18,10 @@ export class BotService {
   constructor(token: string) {
     this.bot = new Telegraf(token as string);
     this.userService = new UserService();
-    this.stage = new Scenes.Stage<any>([this.createRegisterWizard(), this.createOrderWizard()]) as any;
+    this.stage = new Scenes.Stage<any>([
+      this.createRegisterWizard(),
+      this.createOrderWizard(),
+    ]) as any;
     this.setupHandlers();
   }
 
@@ -28,10 +33,13 @@ export class BotService {
       await this.handleStart(ctx);
     });
 
-    this.bot.help((ctx: Context) => {
-      ctx.reply(
-        "Команды:\n/start — запуск бота\n/help — помощь\n/register — регистрация (поделиться телефоном)\n/order — оформить заказ эвакуатора\nТакже вы можете отправить геолокацию."
-      );
+    this.bot.help(async (ctx: Context) => {
+      ctx.reply(await t(ctx, "help.text"));
+    });
+
+    // Language command
+    this.bot.command("language", async (ctx: any) => {
+      await this.showLanguageMenu(ctx);
     });
 
     this.bot.command("users", async (ctx: Context) => {
@@ -46,43 +54,40 @@ export class BotService {
       await ctx.scene.enter("order-wizard");
     });
 
-    // Russian menu buttons for non-command usage
-    this.bot.hears("Заказать эвакуатор", async (ctx: any) => {
+    // Main menu buttons (RU + UZ)
+    const ORDER_TEXT_RU = "🚚 Заказать эвакуатор";
+    const ORDER_TEXT_UZ = "🚚 Evakuator chaqirish";
+    const REG_TEXT_RU = "📞 Оставить номер";
+    const REG_TEXT_UZ = "📞 Telefon raqamini qoldirish";
+    const LANG_TEXT_RU = "🌐 Язык";
+    const LANG_TEXT_UZ = "🌐 Til";
+
+    this.bot.hears([ORDER_TEXT_RU, ORDER_TEXT_UZ], async (ctx: any) => {
       await ctx.scene.enter("order-wizard");
     });
-    this.bot.hears("Поделиться телефоном", async (ctx: any) => {
+    this.bot.hears([REG_TEXT_RU, REG_TEXT_UZ], async (ctx: any) => {
       await ctx.scene.enter("register-wizard");
     });
+    this.bot.hears([LANG_TEXT_RU, LANG_TEXT_UZ], async (ctx: any) => {
+      await this.showLanguageMenu(ctx);
+    });
 
-    // Payment callbacks (pay:<orderId>:<method>)
-    this.bot.on("callback_query", async (ctx: any) => {
+    // Callback handler for language selection
+    this.bot.on("callback_query", async (ctx: any, next: any) => {
       const data: string = ctx.callbackQuery?.data || "";
-      if (!data.startsWith("pay:")) return ctx.answerCbQuery().catch(() => {});
-      try {
-        const parts = data.split(":");
-        const id = Number(parts[1]);
-        const method = parts[2];
-        if (!id || !method) return ctx.answerCbQuery("Некорректные данные").catch(() => {});
-        const orderRepo = AppDataSource.getRepository(Order);
-        const payRepo = AppDataSource.getRepository(require("../entities/Payment").Payment);
-        const order = await orderRepo.findOne({ where: { id } });
-        if (!order) return ctx.answerCbQuery("Заказ не найден").catch(() => {});
-        let payment = await payRepo.findOne({ where: { order: { id } as any } });
-        if (!payment) payment = payRepo.create({ order, amount: order.price, status: "PENDING" });
-        payment.provider = method;
-        payment.status = "SUCCESS";
-        await payRepo.save(payment);
-        order.status = "COMPLETED" as any;
-        order.completedAt = new Date();
-        await orderRepo.save(order);
-        await ctx.answerCbQuery("Оплата подтверждена");
-        await ctx.editMessageText(
-          `Оплата принята: ${order.price.toFixed(2)}₽, способ: ${method === "CASH" ? "Наличные" : "Карта"}`
-        ).catch(() => {});
-      } catch (e) {
-        console.error("pay callback error", e);
-        try { await ctx.answerCbQuery("Ошибка оплаты"); } catch {}
+      if (data.startsWith("lang:")) {
+        const lang = data.split(":")[1];
+        if (lang === "ru" || lang === "uz") {
+          await setUserLanguageByTelegramId(String(ctx.from.id), lang as any);
+          await ctx.answerCbQuery();
+          await ctx.reply(await t(ctx, "lang.set", { langName: getLangName(lang as any) }));
+          await this.sendMainMenu(ctx);
+        } else {
+          await ctx.answerCbQuery();
+        }
+        return;
       }
+      return next();
     });
 
     // Location forwarding to admin (outside of order wizard)
@@ -105,7 +110,7 @@ export class BotService {
       }
     });
 
-    // Payment callbacks (pay:<orderId>:<method>) — allow other callbacks to pass through
+    // Payment callbacks (pay:<orderId>:<method>)
     this.bot.on("callback_query", async (ctx: any, next: any) => {
       const data: string = ctx.callbackQuery?.data || "";
       if (!data.startsWith("pay:")) return next();
@@ -113,26 +118,27 @@ export class BotService {
         const parts = data.split(":");
         const id = Number(parts[1]);
         const method = parts[2];
-        if (!id || !method) return ctx.answerCbQuery("Некорректные данные").catch(() => {});
+        if (!id || !method) return ctx.answerCbQuery().catch(() => {});
         const orderRepo = AppDataSource.getRepository(Order);
-        const payRepo = AppDataSource.getRepository(require("../entities/Payment").Payment);
+        const payRepo = AppDataSource.getRepository(Payment);
         const order = await orderRepo.findOne({ where: { id } });
-        if (!order) return ctx.answerCbQuery("Заказ не найден").catch(() => {});
+        if (!order) return ctx.answerCbQuery().catch(() => {});
         let payment = await payRepo.findOne({ where: { order: { id } as any } });
         if (!payment) payment = payRepo.create({ order, amount: order.price, status: "PENDING" });
         payment.provider = method;
         payment.status = "SUCCESS";
         await payRepo.save(payment);
         order.status = "COMPLETED" as any;
-        order.completedAt = new Date();
+        (order as any).completedAt = new Date();
         await orderRepo.save(order);
-        await ctx.answerCbQuery("Оплата подтверждена");
+        await ctx.answerCbQuery(await t(ctx, "payment.successCb"));
+        const methodName = method === "CASH" ? await t(ctx, "payment.method.cash") : await t(ctx, "payment.method.card");
         await ctx.editMessageText(
-          `Оплата принята: ${order.price.toFixed(2)}₽, способ: ${method === "CASH" ? "Наличные" : "Карта"}`
+          await t(ctx, "payment.updatedMsg", { amount: (order.price || 0).toFixed(2), method: methodName })
         ).catch(() => {});
       } catch (e) {
         console.error("pay callback error", e);
-        try { await ctx.answerCbQuery("Ошибка оплаты"); } catch {}
+        try { await ctx.answerCbQuery(); } catch {}
       }
     });
   }
@@ -142,15 +148,12 @@ export class BotService {
       const from: any = (ctx as any).message?.from || (ctx as any).from;
       if (!from) return;
       const user = await this.userService.findOrCreateUser(from);
-      await ctx.reply(
-        `Здравствуйте, ${user.firstName || "пользователь"}!\n` +
-        `— Нажмите «Заказать эвакуатор», чтобы оформить заказ.\n` +
-        `— Нажмите «Поделиться телефоном», чтобы зарегистрироваться.`,
-        Markup.keyboard([["Заказать эвакуатор"],["Поделиться телефоном"]]).resize()
-      );
+      const name = user.firstName || from.first_name || "";
+      await ctx.reply(await t(ctx, "start.welcome", { name }));
+      await this.sendMainMenu(ctx);
     } catch (error) {
       console.error("Start handler error:", error);
-      await ctx.reply("Произошла ошибка. Попробуйте позже.");
+      await ctx.reply(await t(ctx, "errors.common"));
     }
   }
 
@@ -158,7 +161,7 @@ export class BotService {
     try {
       const users = await this.userService.getAllUsers();
       const userCount = users.length;
-      await ctx.reply(`Всего пользователей: ${userCount}`);
+      await ctx.reply(await t(ctx, "admin.usersCount", { count: userCount }));
     } catch (error) {
       console.error("Users command error:", error);
       await ctx.reply("Failed to fetch users.");
@@ -206,8 +209,8 @@ export class BotService {
   private createRegisterWizard(): Scenes.WizardScene<Scenes.WizardContext> {
     const askPhone = async (ctx: any) => {
       await ctx.reply(
-        "Пожалуйста, поделитесь вашим номером телефона",
-        Markup.keyboard([Markup.button.contactRequest("Поделиться телефоном")]).oneTime().resize()
+        await t(ctx, "register.askPhone"),
+        Markup.keyboard([Markup.button.contactRequest(await t(ctx, "register.askPhoneButton"))]).oneTime().resize()
       );
       return ctx.wizard.next();
     };
@@ -222,16 +225,16 @@ export class BotService {
           phone = String(ctx.message.text);
         }
         if (!phone) {
-          await ctx.reply("Отправьте номер телефона или нажмите на кнопку.");
+          await ctx.reply(await t(ctx, "register.invalidPhone"));
           return;
         }
         const userRepo = AppDataSource.getRepository(User);
         await userRepo.update({ telegramId: String(ctx.from.id) as any }, { phone });
-        await ctx.reply("Регистрация завершена. Спасибо!", Markup.removeKeyboard());
+        await ctx.reply(await t(ctx, "register.saved"), Markup.removeKeyboard());
         return ctx.scene.leave();
       } catch (e) {
         console.error("Register save error", e);
-        await ctx.reply("Не удалось сохранить номер. Попробуйте позже.");
+        await ctx.reply(await t(ctx, "errors.common"));
         return ctx.scene.leave();
       }
     };
@@ -245,12 +248,12 @@ export class BotService {
       const driverRepo = AppDataSource.getRepository(Driver);
       const drivers = await driverRepo.find({ where: { status: 'APPROVED' }, order: { rating: 'DESC' } });
       if (!drivers.length) {
-        await ctx.reply("Нет доступных водителей сейчас. Попробуйте позже.");
+        await ctx.reply(await t(ctx, "order.noDrivers"));
         return ctx.scene.leave();
       }
       const rows = drivers.slice(0, 30).map((d: any) => [Markup.button.callback(`${d.name} (${d.phone})`, `drv:${d.id}`)]);
       await ctx.reply(
-        'Выберите водителя:',
+        await t(ctx, "order.chooseDriver"),
         Markup.inlineKeyboard(rows)
       );
       return ctx.wizard.next();
@@ -264,8 +267,8 @@ export class BotService {
         state.driverId = id;
         await (ctx as any).answerCbQuery();
         await ctx.reply(
-          "Отправьте место подачи (геолокацию) или напишите адрес.",
-          Markup.keyboard([Markup.button.locationRequest('Отправить локацию')]).oneTime().resize()
+          await t(ctx, "order.askPickup"),
+          Markup.keyboard([Markup.button.locationRequest(await t(ctx, "order.askPickupButton"))]).oneTime().resize()
         );
         return ctx.wizard.next();
       } else if (ctx.message?.text) {
@@ -285,10 +288,10 @@ export class BotService {
       } else if (ctx.message?.text) {
         state.pickup = { address: ctx.message.text };
       } else {
-        await ctx.reply("Отправьте геолокацию или напишите адрес.");
+        await ctx.reply(await t(ctx, "order.askPickup"));
         return;
       }
-      await ctx.reply("Теперь отправьте место назначения (геолокацию или адрес).");
+      await ctx.reply(await t(ctx, "order.askDropoff"));
       return ctx.wizard.next();
     };
 
@@ -301,10 +304,10 @@ export class BotService {
       } else if (ctx.message?.text) {
         state.dropoff = { address: ctx.message.text };
       } else {
-        await ctx.reply("Отправьте геолокацию или напишите адрес.");
+        await ctx.reply(await t(ctx, "order.askDropoff"));
         return;
       }
-      await ctx.reply("Создаю ваш заказ...");
+      await ctx.reply(await t(ctx, "order.creating"));
 
       try {
         const userRepo = AppDataSource.getRepository(User);
@@ -316,17 +319,17 @@ export class BotService {
         const orderRepo = AppDataSource.getRepository(Order);
         const order = orderRepo.create({
           user,
-          status: state.driverId ? "ASSIGNED" : "PENDING",
+          status: (state.driverId ? "ASSIGNED" : "PENDING") as any,
           pickupLocation: state.pickup,
           dropoffLocation: state.dropoff,
           price: 0,
-          driver: state.driverId ? { id: state.driverId } as any : undefined,
+          driver: state.driverId ? ({ id: state.driverId } as any) : undefined,
         });
         await orderRepo.save(order);
         try {
-          if (order.driver?.id) {
+          if ((order as any).driver?.id) {
             const io = getIO();
-            io.to(`driver:${order.driver.id}`).emit("order.assigned", order);
+            io.to(`driver:${(order as any).driver.id}`).emit("order.assigned", order);
           }
         } catch {}
 
@@ -340,9 +343,9 @@ export class BotService {
             : state.dropoff?.address || "";
           await this.bot.telegram.sendMessage(
             adminChatId,
-            `Новый заказ #${order.id} от ${ctx.from.first_name || "Пользователь"} (@${ctx.from.username || "-"})\n` +
-            `Водитель: ${state.driverId ? `#${state.driverId}` : 'не выбран'}\n` +
-            `Откуда: ${mapsLinkPickup}\nКуда: ${mapsLinkDrop}`
+            `New order #${(order as any).id} from ${ctx.from.first_name || "User"} (@${ctx.from.username || "-"})\n` +
+              `Driver: ${state.driverId ? `#${state.driverId}` : 'not assigned'}\n` +
+              `Pickup: ${mapsLinkPickup}\nDropoff: ${mapsLinkDrop}`
           );
           if (state.pickup?.latitude) {
             await this.bot.telegram.sendLocation(adminChatId, state.pickup.latitude, state.pickup.longitude);
@@ -352,10 +355,10 @@ export class BotService {
           }
         }
 
-        await ctx.reply(`Заказ создан. Номер: ${order.id}. Спасибо!`);
+        await ctx.reply(await t(ctx, "order.created", { id: (order as any).id }));
       } catch (e) {
         console.error("Order creation error", e);
-        await ctx.reply("Не удалось создать заказ. Попробуйте позже.");
+        await ctx.reply(await t(ctx, "errors.common"));
       }
 
       return ctx.scene.leave();
@@ -369,4 +372,24 @@ export class BotService {
       captureDropoffAndCreate as any
     );
   }
+
+  private async sendMainMenu(ctx: any) {
+    const order = await t(ctx, "menu.order");
+    const register = await t(ctx, "menu.register");
+    const language = await t(ctx, "menu.language");
+    await ctx.reply(
+      await t(ctx, "start.menuHint"),
+      Markup.keyboard([[order], [register], [language]]).resize()
+    );
+  }
+
+  private async showLanguageMenu(ctx: any) {
+    await ctx.reply(
+      await t(ctx, "lang.choose"),
+      Markup.inlineKeyboard([
+        [Markup.button.callback("Русский", "lang:ru"), Markup.button.callback("O‘zbekcha", "lang:uz")],
+      ])
+    );
+  }
 }
+
